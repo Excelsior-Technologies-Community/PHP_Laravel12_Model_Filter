@@ -58,13 +58,37 @@ class PostController extends Controller
             ->with('success', 'Post created successfully!');
     }
 
+    public function show($id)
+{
+    $post = Post::findOrFail($id);
+    return view('posts.show', compact('post'));
+}
     // SHOW EDIT PAGE
     public function edit($id)
     {
         $post = Post::findOrFail($id);
         return view('posts.edit', compact('post'));
     }
+public function search(Request $request)
+{
+    $query = Post::query();
 
+    if ($request->title) {
+        $query->where('title', 'LIKE', '%' . $request->title . '%');
+    }
+
+    if ($request->status !== null && $request->status !== '') {
+        $query->where('is_published', $request->status);
+    }
+
+    if ($request->date) {
+        $query->whereDate('post_date', $request->date);
+    }
+
+    $posts = $query->latest()->get();
+
+    return view('posts.partials.post_list', compact('posts'))->render();
+}
     // UPDATE DATA
     public function update(Request $request, $id)
     {
