@@ -7,38 +7,43 @@ use Illuminate\Http\Request;
 
 class PostController extends Controller
 {
-    // INDEX PAGE (list + filter)
     public function index(Request $request)
     {
         $query = Post::query();
 
-        // ✅ TITLE FILTER
         if ($request->filled('title_filter')) {
             $query->where('title', 'like', '%' . $request->title_filter . '%');
         }
 
-        // ✅ DATE FILTER (IMPORTANT)
         if ($request->filled('created_after_filter')) {
             $query->whereDate('post_date', $request->created_after_filter);
         }
 
-        // ✅ STATUS FILTER
         if ($request->filled('published_filter')) {
             $query->where('is_published', $request->published_filter);
         }
 
-        $posts = $query->latest()->get();
+        $posts = $query->orderBy('id', 'asc')->paginate(3);
 
-        return view('posts.index', compact('posts'));
-    }
+        $totalPosts = Post::count();
+        $publishedPosts = Post::where('is_published', 1)->count();
+        $draftPosts = Post::where('is_published', 0)->count();
+        $todayPosts = Post::whereDate('created_at', today())->count();
 
-    // CREATE PAGE (form)
+        return view('posts.index', compact(
+            'posts',
+            'totalPosts',
+            'publishedPosts',
+            'draftPosts',
+            'todayPosts'
+        ));
+    }   
+
     public function create()
     {
         return view('posts.create');
     }
 
-    // STORE DATA
     public function store(Request $request)
     {
         $request->validate([
@@ -51,21 +56,46 @@ class PostController extends Controller
             'title' => $request->title,
             'content' => $request->content,
             'is_published' => $request->is_published ?? 1,
-            'post_date' => $request->post_date, // 👈 ADD THIS
+            'post_date' => $request->post_date,
         ]);
 
         return redirect()->route('posts.index')
             ->with('success', 'Post created successfully!');
     }
 
-    // SHOW EDIT PAGE
+    public function show($id)
+    {
+        $post = Post::findOrFail($id);
+        return view('posts.show', compact('post'));
+    }
+
     public function edit($id)
     {
         $post = Post::findOrFail($id);
         return view('posts.edit', compact('post'));
     }
 
-    // UPDATE DATA
+    public function search(Request $request)
+    {
+        $query = Post::query();
+
+        if ($request->title) {
+            $query->where('title', 'LIKE', '%' . $request->title . '%');
+        }
+
+        if ($request->status !== null && $request->status !== '') {
+            $query->where('is_published', $request->status);
+        }
+
+        if ($request->date) {
+            $query->whereDate('post_date', $request->date);
+        }
+
+        $posts = $query->latest()->paginate(5);
+
+        return view('posts.partials.post_list', compact('posts'))->render();
+    }
+
     public function update(Request $request, $id)
     {
         $request->validate([
@@ -87,13 +117,24 @@ class PostController extends Controller
             ->with('success', 'Post updated successfully!');
     }
 
-    // DELETE POST
     public function destroy($id)
     {
-        $post = Post::findOrFail($id);
-        $post->delete();
+        Post::findOrFail($id)->delete();
 
         return redirect()->route('posts.index')
             ->with('success', 'Post deleted successfully!');
+    }
+
+    public function toggleStatus($id)
+    {
+        $post = Post::findOrFail($id);
+
+        $post->is_published = !$post->is_published;
+        $post->save();
+
+        return back()->with(
+            'success',
+            'Post status updated successfully!'
+        );
     }
 }
