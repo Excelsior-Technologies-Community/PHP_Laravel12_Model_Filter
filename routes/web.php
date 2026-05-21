@@ -7,8 +7,8 @@ Route::get('/', function () {
     return redirect()->route('posts.index'); // Redirect to posts dashboard
 });
 
-// ✅ FIRST: search route mukvo
 Route::get('/posts/search', [PostController::class, 'search'])->name('posts.search');
 
-// ✅ THEN resource routes
-Route::resource('posts', PostController::class)->except(['show']);
+Route::patch('/posts/{id}/toggle-status', [PostController::class, 'toggleStatus'])->name('posts.toggleStatus');
+
+Route::resource('posts', PostController::class);

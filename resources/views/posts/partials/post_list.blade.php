@@ -1,12 +1,15 @@
 @forelse($posts as $post)
+
 <div class="post-card mb-3">
 
     <div class="d-flex justify-content-between">
+
         <h5>{{ $post->title }}</h5>
 
         <span class="badge {{ $post->is_published ? 'bg-success' : 'bg-secondary' }}">
             {{ $post->is_published ? 'Published' : 'Draft' }}
         </span>
+
     </div>
 
     <p class="post-content">{{ $post->content }}</p>
@@ -19,24 +22,44 @@
         </div>
 
         <div>
-            <!-- EDIT -->
-            <a href="{{ route('posts.edit', $post->id) }}" class="btn btn-edit btn-sm">
+
+            <!-- Toggle Status -->
+            <form action="{{ route('posts.toggleStatus',$post->id) }}" method="POST" class="d-inline">
+                @csrf
+                @method('PATCH')
+
+                <button class="btn btn-warning btn-sm">
+                    {{ $post->is_published ? 'Draft' : 'Publish' }}
+                </button>
+            </form>
+
+            <!-- Edit -->
+            <a href="{{ route('posts.edit',$post->id) }}" class="btn btn-edit btn-sm">
                 <i class="bi bi-pencil"></i>
             </a>
 
-            <!-- DELETE -->
-            <form action="{{ route('posts.destroy', $post->id) }}" method="POST" class="d-inline delete-form">
+            <!-- Delete -->
+            <form action="{{ route('posts.destroy',$post->id) }}" method="POST" class="d-inline delete-form">
                 @csrf
                 @method('DELETE')
+
                 <button class="btn btn-delete btn-sm">
                     <i class="bi bi-trash"></i>
                 </button>
             </form>
+
         </div>
 
     </div>
 
 </div>
+
 @empty
+
 <p class="text-center text-muted">No posts found</p>
+
 @endforelse
+
+<div class="mt-4">
+    {{ $posts->links('pagination::bootstrap-5') }}
+</div>
