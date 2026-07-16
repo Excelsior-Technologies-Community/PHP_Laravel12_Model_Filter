@@ -3,16 +3,13 @@
 <div class="post-card mb-3">
 
     <div class="d-flex justify-content-between">
-
         <h5>{{ $post->title }}</h5>
-
         <span class="badge {{ $post->is_published ? 'bg-success' : 'bg-secondary' }}">
             {{ $post->is_published ? 'Published' : 'Draft' }}
         </span>
-
     </div>
 
-    <p class="post-content">{{ $post->content }}</p>
+    <p class="post-content text-muted small">{{ \Illuminate\Support\Str::limit($post->content, 50) }}</p>
 
     <div class="d-flex justify-content-between align-items-center">
 
@@ -22,32 +19,25 @@
         </div>
 
         <div>
-
-            <!-- Toggle Status -->
-            <form action="{{ route('posts.toggleStatus',$post->id) }}" method="POST" class="d-inline">
+            <form action="{{ route('posts.toggleStatus', $post->id) }}" method="POST" class="d-inline">
                 @csrf
                 @method('PATCH')
-
                 <button class="btn btn-warning btn-sm">
                     {{ $post->is_published ? 'Draft' : 'Publish' }}
                 </button>
             </form>
 
-            <!-- Edit -->
-            <a href="{{ route('posts.edit',$post->id) }}" class="btn btn-edit btn-sm">
+            <a href="{{ route('posts.edit', $post->id) }}" class="btn btn-info btn-sm">
                 <i class="bi bi-pencil"></i>
             </a>
 
-            <!-- Delete -->
-            <form action="{{ route('posts.destroy',$post->id) }}" method="POST" class="d-inline delete-form">
+            <form action="{{ route('posts.destroy', $post->id) }}" method="POST" class="d-inline delete-form">
                 @csrf
                 @method('DELETE')
-
-                <button class="btn btn-delete btn-sm">
+                <button class="btn btn-danger btn-sm">
                     <i class="bi bi-trash"></i>
                 </button>
             </form>
-
         </div>
 
     </div>
@@ -55,11 +45,9 @@
 </div>
 
 @empty
-
 <p class="text-center text-muted">No posts found</p>
-
 @endforelse
 
-<div class="mt-4">
+<div class="mt-4 d-flex justify-content-center">
     {{ $posts->links('pagination::bootstrap-5') }}
 </div>
