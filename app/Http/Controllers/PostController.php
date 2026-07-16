@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Models\FilterPreset;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class PostController extends Controller
 {
@@ -23,21 +25,28 @@ class PostController extends Controller
             $query->where('is_published', $request->published_filter);
         }
 
-        $posts = $query->orderBy('id', 'asc')->paginate(3);
+        // Sort
+        $sort = $request->get('sort', 'latest');
+        match ($sort) {
+            'title_asc'  => $query->orderBy('title', 'asc'),
+            'title_desc' => $query->orderBy('title', 'desc'),
+            'oldest'     => $query->orderBy('created_at', 'asc'),
+            default      => $query->orderBy('created_at', 'desc'),
+        };
 
-        $totalPosts = Post::count();
+        $posts = $query->paginate(10)->withQueryString();
+
+        $totalPosts     = Post::count();
         $publishedPosts = Post::where('is_published', 1)->count();
-        $draftPosts = Post::where('is_published', 0)->count();
-        $todayPosts = Post::whereDate('created_at', today())->count();
+        $draftPosts     = Post::where('is_published', 0)->count();
+        $todayPosts     = Post::whereDate('created_at', today())->count();
+        $presets        = FilterPreset::orderBy('name')->get();
 
         return view('posts.index', compact(
-            'posts',
-            'totalPosts',
-            'publishedPosts',
-            'draftPosts',
-            'todayPosts'
+            'posts', 'totalPosts', 'publishedPosts',
+            'draftPosts', 'todayPosts', 'presets'
         ));
-    }   
+    }
 
     public function create()
     {
@@ -47,20 +56,19 @@ class PostController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'title' => 'required',
-            'content' => 'required',
+            'title'     => 'required',
+            'content'   => 'required',
             'post_date' => 'required|date',
         ]);
 
         Post::create([
-            'title' => $request->title,
-            'content' => $request->content,
+            'title'        => $request->title,
+            'content'      => $request->content,
             'is_published' => $request->is_published ?? 1,
-            'post_date' => $request->post_date,
+            'post_date'    => $request->post_date,
         ]);
 
-        return redirect()->route('posts.index')
-            ->with('success', 'Post created successfully!');
+        return redirect()->route('posts.index')->with('success', 'Post created successfully!');
     }
 
     public function show($id)
@@ -73,6 +81,37 @@ class PostController extends Controller
     {
         $post = Post::findOrFail($id);
         return view('posts.edit', compact('post'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'title'     => 'required',
+            'content'   => 'required',
+            'post_date' => 'required',
+        ]);
+
+        Post::findOrFail($id)->update([
+            'title'        => $request->title,
+            'content'      => $request->content,
+            'post_date'    => $request->post_date,
+            'is_published' => $request->is_published,
+        ]);
+
+        return redirect()->route('posts.index')->with('success', 'Post updated successfully!');
+    }
+
+    public function destroy($id)
+    {
+        Post::findOrFail($id)->delete();
+        return redirect()->route('posts.index')->with('success', 'Post deleted successfully!');
+    }
+
+    public function toggleStatus($id)
+    {
+        $post = Post::findOrFail($id);
+        $post->update(['is_published' => !$post->is_published]);
+        return back()->with('success', 'Post status updated!');
     }
 
     public function search(Request $request)
@@ -91,50 +130,41 @@ class PostController extends Controller
             $query->whereDate('post_date', $request->date);
         }
 
-        $posts = $query->latest()->paginate(5);
+        $sort = $request->get('sort', 'latest');
+        match ($sort) {
+            'title_asc'  => $query->orderBy('title', 'asc'),
+            'title_desc' => $query->orderBy('title', 'desc'),
+            'oldest'     => $query->orderBy('created_at', 'asc'),
+            default      => $query->orderBy('created_at', 'desc'),
+        };
+
+        $posts = $query->paginate(10);
 
         return view('posts.partials.post_list', compact('posts'))->render();
     }
 
-    public function update(Request $request, $id)
+    // --- Filter Presets ---
+
+    public function savePreset(Request $request)
     {
-        $request->validate([
-            'title' => 'required',
-            'content' => 'required',
-            'post_date' => 'required',
+        $request->validate(['preset_name' => 'required|string|max:100']);
+
+        FilterPreset::create([
+            'name'    => $request->preset_name,
+            'filters' => [
+                'title_filter'          => $request->title_filter,
+                'created_after_filter'  => $request->created_after_filter,
+                'published_filter'      => $request->published_filter,
+                'sort'                  => $request->sort,
+            ],
         ]);
 
-        $post = Post::findOrFail($id);
-
-        $post->update([
-            'title' => $request->title,
-            'content' => $request->content,
-            'post_date' => $request->post_date,
-            'is_published' => $request->is_published
-        ]);
-
-        return redirect()->route('posts.index')
-            ->with('success', 'Post updated successfully!');
+        return redirect()->route('posts.index')->with('success', 'Preset saved!');
     }
 
-    public function destroy($id)
+    public function deletePreset($id)
     {
-        Post::findOrFail($id)->delete();
-
-        return redirect()->route('posts.index')
-            ->with('success', 'Post deleted successfully!');
-    }
-
-    public function toggleStatus($id)
-    {
-        $post = Post::findOrFail($id);
-
-        $post->is_published = !$post->is_published;
-        $post->save();
-
-        return back()->with(
-            'success',
-            'Post status updated successfully!'
-        );
+        FilterPreset::findOrFail($id)->delete();
+        return redirect()->route('posts.index')->with('success', 'Preset deleted!');
     }
 }
